@@ -650,57 +650,76 @@ void Config_2104(Uint16 bShutdown)
 	EDIS;
 }
 
-void StopMotor(void)
-{
-	Uint16 i=0;
-	float32 StepTm[ACC_STEPS];
+/*
+ * Stop the running motor using the trapezoid decrease speed method
+ */
+void StopMotor(void) {
+Uint16 i = 0;
+float32 StepTm[ACC_STEPS];
 
-	ECap1Int(false);
-	CalcStepTm(Motor.usSetSpeed,StepTm);
-	for(i=0;i<ACC_STEPS;i++)
-		Motor_Run(StepTm[ACC_STEPS-1-i]);
-	SlowDecay();
+ECap1Int(false);
+CalcStepTm(Motor.usSetSpeed, StepTm);
+for (i = 0; i < ACC_STEPS; i++)
+	Motor_Run(StepTm[ACC_STEPS - 1 - i]);
+SlowDecay();
 
-	Config_Led(1);
-	Motor.hst.bit.state=MOTOR_STOPPED;
-	ECap1Int(true);
+Config_Led(1);
+Motor.hst.bit.state = MOTOR_STOPPED;
+ECap1Int(true);
 }
-void StartMotor(Uint32 uSpd)
-{
-	Uint16 i=0;
-	float32 StepTm[ACC_STEPS];
 
-	ECap1Int(false);
-	Motor.hst.bit.state=MOTOR_RUNNING;
-	Motor.usSetSpeed=uSpd/10.0;
-	CalcStepTm(Motor.usSetSpeed,StepTm);
+/*
+ * Dive motor to run at given speed from standstill
+ * Input 'uSpd' The maximum speed motor should running at
+ * CAUTION Motor must at 'Stopped' status before calling this function
+ */
+void StartMotor(Uint32 uSpd) {
+Uint16 i = 0;
+float32 StepTm[ACC_STEPS];
 
-	Config_Led(0);
-	for(i=0;i<ACC_STEPS;i++)
-		Motor_Run(StepTm[i]);
+ECap1Int(false);
+Motor.hst.bit.state = MOTOR_RUNNING;
+Motor.usSetSpeed = uSpd / 10.0;
+CalcStepTm(Motor.usSetSpeed, StepTm);
 
-	ECap1Int(true);
+Config_Led(0);
+for (i = 0; i < ACC_STEPS; i++)
+	Motor_Run(StepTm[i]);
 
+ECap1Int(true);
 }
-void CalcStepTm(float32 Tmin,float32* StepTm)
-{
-	Uint16 i=0;
-	float32 Ta=0;
-	Ta=Tmin/(sqrt(1.0/ACC_STEPS)*(sqrt(ACC_STEPS)-sqrt(ACC_STEPS-1)));
-	for(i=0;i<ACC_STEPS-1;i++)
-	{
-		StepTm[i]=Ta*sqrt(1.0/ACC_STEPS)*(sqrt(i+1)-sqrt(i));
-		StepTm[i]=StepTm[i];
-	}
-	StepTm[ACC_STEPS-1]=Tmin;
+
+/*
+ * Calculating Motor Step Time using Trapezoid Acceleration or Deceleration Methods.
+ * 	Description: Motor run to the maximum speed from stop or verse at given steps, So we need to calculate every step's period.
+ * 	Input 'Tmin' The maximum speed's period
+ * 	Input 'StepTm' The array used to store the results
+ */
+void CalcStepTm(float32 Tmin, float32* StepTm) {
+Uint16 i = 0;
+float32 Ta = 0;
+Ta = Tmin / (sqrt(1.0 / ACC_STEPS) * (sqrt(ACC_STEPS) - sqrt(ACC_STEPS - 1)));
+for (i = 0; i < ACC_STEPS - 1; i++) {
+	StepTm[i] = Ta * sqrt(1.0 / ACC_STEPS) * (sqrt(i + 1) - sqrt(i));
+	StepTm[i] = StepTm[i];
 }
-void SlowDecay(void)
-{
-	Adjust_Duty(0, 0, PUL_DUTY, PUL_DUTY);
-	Adjust_Duty(0, 1, PUL_DUTY, PUL_DUTY);
-	Adjust_Duty(1, 0, PUL_DUTY, PUL_DUTY);
-	Adjust_Duty(1, 1, PUL_DUTY, PUL_DUTY);
+StepTm[ACC_STEPS - 1] = Tmin;
 }
+
+/*
+ * Set H Bridge to Slow Decay Mode
+ */
+void SlowDecay(void) {
+Adjust_Duty(0, 0, PUL_DUTY, PUL_DUTY);
+Adjust_Duty(0, 1, PUL_DUTY, PUL_DUTY);
+Adjust_Duty(1, 0, PUL_DUTY, PUL_DUTY);
+Adjust_Duty(1, 1, PUL_DUTY, PUL_DUTY);
+}
+
+/*
+ * Enable or Disable the interrupt of the ECapture Module
+ * Input: bEnable '0' Disable interrupt; '1' Enable interrupt
+ */
 void ECap1Int(Uint16 bEnable) {
 if (bEnable) {
 	ECap1Regs.ECCTL2.bit.TSCTRSTOP = 1;        // Start Counter
